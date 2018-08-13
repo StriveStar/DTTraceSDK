@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>serverURL</key>
+	<string>http://127.0.0.1:9080/debug</string>
+	<key>AppKey</key>
+	<string>83984586</string>
+	<key>SecretKey</key>
+	<string>2f301d71-de26-4529-9dc7-de1ab66038e8</string>
+	<key>flushInterval</key>
+	<string>15000</string>
+	<key>flushBulkSize</key>
+	<string>10</string>
+</dict>
+</plist>

@@ -187,7 +187,7 @@
 		A3E388A21D509BA100F6B9FC /* SAReachability.m in Sources */ = {isa = PBXBuildFile; fileRef = A3E3889E1D509B7100F6B9FC /* SAReachability.m */; };
 		A3EEDCE91C4E084200D1362F /* DemoController.m in Sources */ = {isa = PBXBuildFile; fileRef = A3EEDCE81C4E084200D1362F /* DemoController.m */; };
 		A3F32BD01C57296700C3B98D /* SAValueTransformers.m in Sources */ = {isa = PBXBuildFile; fileRef = A3F32BCF1C57296700C3B98D /* SAValueTransformers.m */; };
-		C321D0CB2119A26300235234 /* local.plist in Resources */ = {isa = PBXBuildFile; fileRef = C321D0CA2119A26300235234 /* local.plist */; };
+		C3BC04F72121A8940064841D /* local.plist in Resources */ = {isa = PBXBuildFile; fileRef = C3BC04F62121A8940064841D /* local.plist */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -386,7 +386,7 @@
 		A3EEDCE71C4E081F00D1362F /* DemoController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = DemoController.h; sourceTree = "<group>"; };
 		A3EEDCE81C4E084200D1362F /* DemoController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = DemoController.m; sourceTree = "<group>"; };
 		A3F32BCF1C57296700C3B98D /* SAValueTransformers.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = SAValueTransformers.m; sourceTree = "<group>"; };
-		C321D0CA2119A26300235234 /* local.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = local.plist; path = ../../AddAndDeleteUI/local.plist; sourceTree = "<group>"; };
+		C3BC04F62121A8940064841D /* local.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = local.plist; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -475,9 +475,9 @@
 		4D0EB7C01B47A88C0019FD21 /* Supporting Files */ = {
 			isa = PBXGroup;
 			children = (
-				C321D0CA2119A26300235234 /* local.plist */,
 				4D0EB7C11B47A88C0019FD21 /* Info.plist */,
 				4D0EB7C21B47A88C0019FD21 /* main.m */,
+				C3BC04F62121A8940064841D /* local.plist */,
 			);
 			name = "Supporting Files";
 			sourceTree = "<group>";
@@ -853,7 +853,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				C321D0CB2119A26300235234 /* local.plist in Resources */,
+				C3BC04F72121A8940064841D /* local.plist in Resources */,
 				4D0EB7CC1B47A88C0019FD21 /* Main.storyboard in Resources */,
 				0027C8531FA201E9002EA41B /* ic_test.png in Resources */,
 				4D0EB7D11B47A88C0019FD21 /* LaunchScreen.xib in Resources */,

@@ -16,7 +16,7 @@ Pod::Spec.new do |s|
   #
 
   s.name         = "DTTraceSDK"
-  s.version      = "0.0.2"
+  s.version      = "0.0.4"
   s.summary      = "test upload cocoaPods demo"
 
   # This description is used to generate tags and improve search results.
@@ -89,7 +89,7 @@ Pod::Spec.new do |s|
   #  Not including the public_header_files will make all headers public.
   #
 
-  s.source_files  = "DTTraceSDK/**/*.{h,m}"
+  s.source_files  = "DTTraceSDK/SensorsAnalyticsSDK/*.{h,m}"
   s.exclude_files = "Classes/Exclude"
 
   # s.public_header_files = "Classes/**/*.h"
@@ -116,7 +116,7 @@ Pod::Spec.new do |s|
   #
 
   # s.framework  = "SomeFramework"
-  # s.frameworks = "SomeFramework", "AnotherFramework"
+  s.frameworks = "Foundation", "UIKit"
 
   # s.library   = "iconv"
   # s.libraries = "iconv", "xml2"
