@@ -16,7 +16,7 @@ Pod::Spec.new do |s|
   #
 
   s.name         = "DTTraceSDK"
-  s.version      = "0.0.6"
+  s.version      = "0.0.7"
   s.summary      = "test upload cocoaPods demo"
 
   # This description is used to generate tags and improve search results.
