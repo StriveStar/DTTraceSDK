@@ -49,6 +49,7 @@
     self.tableView_1.dataSource = self;
     self.tableView_1.sensorsAnalyticsViewID = @"tableView2";
     [self.tableView_1 registerClass:[UITableViewCell class] forCellReuseIdentifier:@"cell"];
+    self.tableView.sensorsAnalyticsIgnoreView = YES;
     [self.view addSubview:self.tableView_1];
     self.view.backgroundColor = [UIColor whiteColor ];
 }

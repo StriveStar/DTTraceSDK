@@ -37,6 +37,7 @@
 #import "SALocationManager.h"
 #import "UIView+AutoTrack.h"
 #import "NSThread+SAHelpers.h"
+#import "MD5Encryption.h"
 #define VERSION @"1.10.6"
 #define PROPERTY_LENGTH_LIMITATION 8191
 
@@ -56,9 +57,11 @@ static NSString* const SYS_BACKGROUND = @"$SYS_BACKGROUND";
 // dtstack 控件长按
 static NSString* const PAGE_CTL_LONG_CLICKED = @"$PAGE_CTL_LONG_CLICKED";
 // dtstack 控件点击
-static NSString* const PAGE_CTL_CLICKED = @"PAGE_CTL_CLICKED";
-// App 浏览页面
+static NSString* const PAGE_CTL_CLICKED = @"$PAGE_CTL_CLICKED";
+// dtstack 浏览页面
 static NSString* const PAGE_ENTER = @"$PAGE_ENTER";
+// dtstack 页面离开事件
+static NSString* const PAGE_LEAVE = @"$PAGE_LEAVE";
 //dtstack envetId
 static NSString* const EVENT_ID = @"event_id";
 
@@ -160,6 +163,7 @@ static SensorsAnalyticsSDK *sharedInstance = nil;
 @property (atomic, copy) NSString *serverURL;
 
 @property (atomic, copy) NSString *distinctId;
+@property (atomic, copy) NSString *DTTID;
 @property (atomic, copy) NSString *originalId;
 @property (atomic, copy) NSString *loginId;
 @property (atomic, copy) NSString *firstDay;
@@ -222,7 +226,7 @@ static SensorsAnalyticsSDK *sharedInstance = nil;
     NSString *_userAgent;
     NSString *_originServerUrl;
     
-    NSMutableArray *_dtstackAutoTrackEvent; // dtstac自动采集事件
+    NSMutableArray *_dtstackAutoTrackEvent; // dtstack自动采集事件
 }
 
 #pragma mark - Initialization
@@ -420,6 +424,8 @@ static SensorsAnalyticsSDK *sharedInstance = nil;
             @(DTSTACK_SYS_BACKGROUND),
             @(DTSTACK_SYS_FOREGROUND),
             @(DTSTACK_SYS_END),
+            @(DTSTACK_PAGE_ENTER),
+            @(DTSTACK_PAGE_LEAVE),
             @(DTSTACK_PAGE_CTL_ITEM_SELECTED),
             @(DTSTACK_PAGE_CTL_CLICKED),
             @(DTSTACK_PAGE_CTL_LONG_CLICKED),
@@ -457,7 +463,7 @@ static SensorsAnalyticsSDK *sharedInstance = nil;
             _flushBulkSize = [[dataDict valueForKey:@"flushBulkSize"] intValue];
             
             _maxCacheSize = 10000;
-            _autoTrack = YES;
+            _autoTrack = NO;
             _heatMap = NO;
             _appRelaunched = NO;
             _showDebugAlertView = YES;
@@ -940,6 +946,15 @@ static SensorsAnalyticsSDK *sharedInstance = nil;
                 }
             } else {
                 [self enqueueWithType:type andEvent:[eventDict copy]];
+                if (_debugMode != SensorsAnalyticsDebugOff) {
+                    // 在DEBUG模式下，直接发送事件
+                    [self flush];
+                } else {
+                    // 否则，在满足发送条件时，发送事件
+                    if ([type isEqualToString:@"track_signup"] || [[self messageQueue] count] >= self.flushBulkSize) {
+                        [self flush];
+                    }
+                }
             }
         } @catch (NSException *exception) {
             SAError(@"%@: %@", self, exception);
@@ -1135,6 +1150,7 @@ static SensorsAnalyticsSDK *sharedInstance = nil;
 }
 
 - (void)enableAutoTrack{
+    _autoTrack = YES;
     [self _enableAutoTrack];
     // 是否首次启动
     BOOL isFirstStart = NO;
@@ -1241,8 +1257,14 @@ static SensorsAnalyticsSDK *sharedInstance = nil;
     return false;
 }
 
-- (void)ignoreAutoTrackEventType:(SensorsAnalyticsAutoTrackEventType)eventType {
-    _autoTrackEventType = _autoTrackEventType ^ eventType;
+- (void)ignoreAutoTrackEventType:(NSArray *)eventTypes {
+    for (NSNumber *eventId in eventTypes) {
+        if ([_dtstackAutoTrackEvent containsObject:eventId]) {
+            [_dtstackAutoTrackEvent removeObjectAtIndex:[_dtstackAutoTrackEvent indexOfObject:eventId]];
+        }else {
+            SADebug(@"_dtstackAutoTrackEvent don't contain this eventId: %@", eventId);
+        }
+    }
 }
 
 - (void)showDebugInfoView:(BOOL)show {
@@ -1606,211 +1628,226 @@ static SensorsAnalyticsSDK *sharedInstance = nil;
     if (lib_detail) {
         [libProperties setValue:lib_detail forKey:@"$lib_detail"];
     }
-
-    dispatch_async(self.serialQueue, ^{
-        NSNumber *currentSystemUpTime = @([[self class] getSystemUpTime]);
-        NSNumber *timeStamp = @([[self class] getCurrentTime] / 1000);
-        /**
-         dtstack 修改, 设置当前发送的时间
-         */
-        NSDate *myDate = [NSDate dateWithTimeIntervalSince1970:[timeStamp doubleValue]];
-        NSDateFormatter *formatter = [NSDateFormatter new];
-        [formatter setDateFormat:@"yyyy-MM-dd HH:mm:ss"];
-        NSString *timeStr = [formatter stringFromDate:myDate];
-        
-        NSMutableDictionary *p = [NSMutableDictionary dictionary];
-        if ([type isEqualToString:@"track"] || [type isEqualToString:@"track_signup"]) {
-            // track / track_signup 类型的请求，还是要加上各种公共property
-            // 这里注意下顺序，按照优先级从低到高，依次是automaticProperties, superProperties和propertieDict
-            [p addEntriesFromDictionary:_automaticProperties];
-            [p addEntriesFromDictionary:_superProperties];
-
-            //update lib $app_version from super properties
-            id app_version = [_superProperties objectForKey:@"$app_version"];
-            if (app_version) {
-                [libProperties setValue:app_version forKey:@"$app_version"];
-            }
-
-            // 每次 track 时手机网络状态
-            NSString *networkType = [SensorsAnalyticsSDK getNetWorkStates];
-            [p setObject:networkType forKey:@"$access"];
-            if ([networkType isEqualToString:@"WIFI"]) {
-                [p setObject:@YES forKey:@"$access_subtype"];
-            } else {
-                [p setObject:@NO forKey:@"$access_subtype"];
-            }
-
-            NSDictionary *eventTimer = self.trackTimer[event];
-            if (eventTimer) {
-                [self.trackTimer removeObjectForKey:event];
-                NSNumber *eventBegin = [eventTimer valueForKey:@"eventBegin"];
-                NSNumber *eventAccumulatedDuration = [eventTimer objectForKey:@"eventAccumulatedDuration"];
-                SensorsAnalyticsTimeUnit timeUnit = [[eventTimer valueForKey:@"timeUnit"] intValue];
-                
-                float eventDuration;
-                if (eventAccumulatedDuration) {
-                    eventDuration = [currentSystemUpTime longValue] - [eventBegin longValue] + [eventAccumulatedDuration longValue];
-                } else {
-                    eventDuration = [currentSystemUpTime longValue] - [eventBegin longValue];
-                }
-
-                if (eventDuration < 0) {
-                    eventDuration = 0;
-                }
-
-                if (eventDuration > 0 && eventDuration < 24 * 60 * 60 * 1000) {
-                    switch (timeUnit) {
-                        case SensorsAnalyticsTimeUnitHours:
-                            eventDuration = eventDuration / 60.0;
-                        case SensorsAnalyticsTimeUnitMinutes:
-                            eventDuration = eventDuration / 60.0;
-                        case SensorsAnalyticsTimeUnitSeconds:
-                            eventDuration = eventDuration / 1000.0;
-                        case SensorsAnalyticsTimeUnitMilliseconds:
-                            break;
-                    }
-                    @try {
-                        [p setObject:@([[NSString stringWithFormat:@"%.3f", eventDuration] floatValue]) forKey:@"event_duration"];
-                    } @catch (NSException *exception) {
-                        SAError(@"%@: %@", self, exception);
-                    }
-                }
-            }
-        }
-        
-        NSString *project = nil;
-        NSString *token = nil;
-        if (propertieDict) {
-            
-            [p setObject:timeStr forKey:@"$timestamp"];
-            
-            NSArray *keys = propertieDict.allKeys;
-            for (id key in keys) {
-                NSObject *obj = propertieDict[key];
-                if ([@"$project" isEqualToString:key]) {
-                    project = (NSString *)obj;
-                } else if ([@"$token" isEqualToString:key]) {
-                    token = (NSString *)obj;
-                } else {
-                    if ([obj isKindOfClass:[NSDate class]]) {
-                        // 序列化所有 NSDate 类型
-                        NSString *dateStr = [_dateFormatter stringFromDate:(NSDate *)obj];
-                        [p setObject:dateStr forKey:key];
-                    } else {
-                        [p setObject:obj forKey:key];
-                    }
-                }
-            }
-        }
-        
-        NSMutableDictionary *e;
-        NSString *bestId;
-        if ([self loginId] != nil) {
-            bestId = [self loginId];
-        } else{
-            bestId = [self distinctId];
-        }
-
-        if (bestId == nil) {
-            [self resetAnonymousId];
-            bestId = [self anonymousId];
-        }
-
-        if ([type isEqualToString:@"track_signup"]) {
-            e = [NSMutableDictionary dictionaryWithObjectsAndKeys:
-                 event, @"event",
-                 [NSDictionary dictionaryWithDictionary:p], @"properties",
-                 bestId, @"distinct_id",
-                 self.originalId, @"original_id",
-                 timeStamp, @"time",
-                 type, @"type",
-                 libProperties, @"lib",
-                 @(arc4random()), @"_track_id",
-                 nil];
-        } else if([type isEqualToString:@"track"]){
-            //  是否首日访问
-            if ([self isFirstDay]) {
-                [p setObject:@YES forKey:@"$is_first_day"];
-            } else {
-                [p setObject:@NO forKey:@"$is_first_day"];
-            }
-
-            @try {
-                if ([self isLaunchedPassively]) {
-                    [p setObject:@"background" forKey:@"$app_state"];
-                }
-            } @catch (NSException *e) {
-                SAError(@"%@: %@", self, e);
-            }
-
-#ifndef SENSORS_ANALYTICS_DISABLE_TRACK_DEVICE_ORIENTATION
-            @try {
-                //采集设备方向
-                if (self.deviceOrientationConfig.enableTrackScreenOrientation && self.deviceOrientationConfig.deviceOrientation.length) {
-                    [p setObject:self.deviceOrientationConfig.deviceOrientation forKey:@"$screen_orientation"];
-                }
-            } @catch (NSException *e) {
-                 SAError(@"%@: %@", self, e);
-            }
-#endif
-
-#ifndef SENSORS_ANALYTICS_DISABLE_TRACK_GPS
-            @try {
-                //采集地理位置信息
-                if (self.locationConfig.enableGPSLocation) {
-                    if (CLLocationCoordinate2DIsValid(self.locationConfig.coordinate)) {
-                        NSInteger latitude = self.locationConfig.coordinate.latitude;
-                        NSInteger longitude = self.locationConfig.coordinate.longitude;
-                        [p setObject:@(latitude) forKey:@"$latitude"];
-                        [p setObject:@(longitude) forKey:@"$longitude"];
-                    }
-                }
-            } @catch (NSException *e) {
-                SAError(@"%@: %@", self, e);
-            }
-#endif
-            e = [NSMutableDictionary dictionaryWithObjectsAndKeys:
-                 event, @"event",
-                 [NSDictionary dictionaryWithDictionary:p], @"properties",
-                 bestId, @"distinct_id",
-                 timeStamp, @"time",
-                 type, @"type",
-                 libProperties, @"lib",
-                 @(arc4random()), @"_track_id",
-                 nil];
-        } else {
-            // 此时应该都是对Profile的操作
-            e = [NSMutableDictionary dictionaryWithObjectsAndKeys:
-                 [NSDictionary dictionaryWithDictionary:p], @"properties",
-                 bestId, @"distinct_id",
-                 timeStamp, @"time",
-                 type, @"type",
-                 libProperties, @"lib",
-                 @(arc4random()), @"_track_id",
-                 nil];
-        }
-
-        if (project) {
-            [e setObject:project forKey:@"project"];
-        }
-        if (token) {
-            [e setObject:token forKey:@"token"];
-        }
-        
-        SALog(@"\n【track event】:\n%@", e);
-        
-        [self enqueueWithType:type andEvent:[e copy]];
-        
+    if ([event isEqualToString:@"$SYS_END"]) {
+        [self sendMessageByLibProperties:libProperties andProDict:propertieDict for:event and:type];
         if (_debugMode != SensorsAnalyticsDebugOff) {
             // 在DEBUG模式下，直接发送事件
-            [self flush];
+            [self _flush:NO];
         } else {
             // 否则，在满足发送条件时，发送事件
             if ([type isEqualToString:@"track_signup"] || [[self messageQueue] count] >= self.flushBulkSize) {
-                [self flush];
+                [self _flush:NO];
             }
         }
-    });
+    } else {
+        dispatch_async(self.serialQueue, ^{
+            [self sendMessageByLibProperties:libProperties andProDict:propertieDict for:event and:type];
+            if (_debugMode != SensorsAnalyticsDebugOff) {
+                // 在DEBUG模式下，直接发送事件
+                [self flush];
+            } else {
+                // 否则，在满足发送条件时，发送事件
+                if ([type isEqualToString:@"track_signup"] || [[self messageQueue] count] >= self.flushBulkSize) {
+                    [self flush];
+                }
+            }
+        });
+    }
+}
+
+- (void)sendMessageByLibProperties:(NSMutableDictionary *)libProperties andProDict:(NSDictionary *)propertieDict for:(NSString *)event and:(NSString *)type{
+    NSNumber *currentSystemUpTime = @([[self class] getSystemUpTime]);
+    NSNumber *timeStamp = @([[self class] getCurrentTime] / 1000);
+    /**
+     dtstack 修改, 设置当前发送的时间
+     */
+    NSDate *myDate = [NSDate dateWithTimeIntervalSince1970:[timeStamp doubleValue]];
+    NSDateFormatter *formatter = [NSDateFormatter new];
+    [formatter setDateFormat:@"yyyy-MM-dd HH:mm:ss"];
+    NSString *timeStr = [formatter stringFromDate:myDate];
+    
+    NSMutableDictionary *p = [NSMutableDictionary dictionary];
+    if ([type isEqualToString:@"track"] || [type isEqualToString:@"track_signup"]) {
+        // track / track_signup 类型的请求，还是要加上各种公共property
+        // 这里注意下顺序，按照优先级从低到高，依次是automaticProperties, superProperties和propertieDict
+        [p addEntriesFromDictionary:_automaticProperties];
+        [p addEntriesFromDictionary:_superProperties];
+        
+        //update lib $app_version from super properties
+        id app_version = [_superProperties objectForKey:@"$app_version"];
+        if (app_version) {
+            [libProperties setValue:app_version forKey:@"$app_version"];
+        }
+        
+        // 每次 track 时手机网络状态
+        NSString *networkType = [SensorsAnalyticsSDK getNetWorkStates];
+        [p setObject:networkType forKey:@"$access"];
+        if ([networkType isEqualToString:@"WIFI"]) {
+            [p setObject:@YES forKey:@"$access_subtype"];
+        } else {
+            [p setObject:@NO forKey:@"$access_subtype"];
+        }
+        
+        NSDictionary *eventTimer = self.trackTimer[event];
+        if (eventTimer) {
+            [self.trackTimer removeObjectForKey:event];
+            NSNumber *eventBegin = [eventTimer valueForKey:@"eventBegin"];
+            NSNumber *eventAccumulatedDuration = [eventTimer objectForKey:@"eventAccumulatedDuration"];
+            SensorsAnalyticsTimeUnit timeUnit = [[eventTimer valueForKey:@"timeUnit"] intValue];
+            
+            float eventDuration;
+            if (eventAccumulatedDuration) {
+                eventDuration = [currentSystemUpTime longValue] - [eventBegin longValue] + [eventAccumulatedDuration longValue];
+            } else {
+                eventDuration = [currentSystemUpTime longValue] - [eventBegin longValue];
+            }
+            
+            if (eventDuration < 0) {
+                eventDuration = 0;
+            }
+            
+            if (eventDuration > 0 && eventDuration < 24 * 60 * 60 * 1000) {
+                switch (timeUnit) {
+                    case SensorsAnalyticsTimeUnitHours:
+                        eventDuration = eventDuration / 60.0;
+                    case SensorsAnalyticsTimeUnitMinutes:
+                        eventDuration = eventDuration / 60.0;
+                    case SensorsAnalyticsTimeUnitSeconds:
+                        eventDuration = eventDuration / 1000.0;
+                    case SensorsAnalyticsTimeUnitMilliseconds:
+                        break;
+                }
+                @try {
+                    [p setObject:@([[NSString stringWithFormat:@"%.3f", eventDuration] floatValue]) forKey:@"event_duration"];
+                } @catch (NSException *exception) {
+                    SAError(@"%@: %@", self, exception);
+                }
+            }
+        }
+    }
+    
+    NSString *project = nil;
+    NSString *token = nil;
+    if (propertieDict) {
+        
+        [p setObject:timeStr forKey:@"$timestamp"];
+        
+        NSArray *keys = propertieDict.allKeys;
+        for (id key in keys) {
+            NSObject *obj = propertieDict[key];
+            if ([@"$project" isEqualToString:key]) {
+                project = (NSString *)obj;
+            } else if ([@"$token" isEqualToString:key]) {
+                token = (NSString *)obj;
+            } else {
+                if ([obj isKindOfClass:[NSDate class]]) {
+                    // 序列化所有 NSDate 类型
+                    NSString *dateStr = [_dateFormatter stringFromDate:(NSDate *)obj];
+                    [p setObject:dateStr forKey:key];
+                } else {
+                    [p setObject:obj forKey:key];
+                }
+            }
+        }
+    }
+    
+    NSMutableDictionary *e;
+    NSString *bestId;
+    if ([self loginId] != nil) {
+        bestId = [self loginId];
+    } else{
+        bestId = [self distinctId];
+    }
+    
+    if (bestId == nil) {
+        [self resetAnonymousId];
+        bestId = [self anonymousId];
+    }
+    
+    if ([type isEqualToString:@"track_signup"]) {
+        e = [NSMutableDictionary dictionaryWithObjectsAndKeys:
+             event, @"event",
+             [NSDictionary dictionaryWithDictionary:p], @"properties",
+             bestId, @"distinct_id",
+             self.originalId, @"original_id",
+             timeStamp, @"time",
+             type, @"type",
+             libProperties, @"lib",
+             @(arc4random()), @"_track_id",
+             nil];
+    } else if([type isEqualToString:@"track"]){
+        //  是否首日访问
+        if ([self isFirstDay]) {
+            [p setObject:@YES forKey:@"$is_first_day"];
+        } else {
+            [p setObject:@NO forKey:@"$is_first_day"];
+        }
+        
+        @try {
+            if ([self isLaunchedPassively]) {
+                [p setObject:@"background" forKey:@"$app_state"];
+            }
+        } @catch (NSException *e) {
+            SAError(@"%@: %@", self, e);
+        }
+        
+#ifndef SENSORS_ANALYTICS_DISABLE_TRACK_DEVICE_ORIENTATION
+        @try {
+            //采集设备方向
+            if (self.deviceOrientationConfig.enableTrackScreenOrientation && self.deviceOrientationConfig.deviceOrientation.length) {
+                [p setObject:self.deviceOrientationConfig.deviceOrientation forKey:@"$screen_orientation"];
+            }
+        } @catch (NSException *e) {
+            SAError(@"%@: %@", self, e);
+        }
+#endif
+        
+#ifndef SENSORS_ANALYTICS_DISABLE_TRACK_GPS
+        @try {
+            //采集地理位置信息
+            if (self.locationConfig.enableGPSLocation) {
+                if (CLLocationCoordinate2DIsValid(self.locationConfig.coordinate)) {
+                    NSInteger latitude = self.locationConfig.coordinate.latitude;
+                    NSInteger longitude = self.locationConfig.coordinate.longitude;
+                    [p setObject:@(latitude) forKey:@"$latitude"];
+                    [p setObject:@(longitude) forKey:@"$longitude"];
+                }
+            }
+        } @catch (NSException *e) {
+            SAError(@"%@: %@", self, e);
+        }
+#endif
+        e = [NSMutableDictionary dictionaryWithObjectsAndKeys:
+             event, @"event",
+             [NSDictionary dictionaryWithDictionary:p], @"properties",
+             bestId, @"distinct_id",
+             timeStamp, @"time",
+             type, @"type",
+             libProperties, @"lib",
+             @(arc4random()), @"_track_id",
+             nil];
+    } else {
+        // 此时应该都是对Profile的操作
+        e = [NSMutableDictionary dictionaryWithObjectsAndKeys:
+             [NSDictionary dictionaryWithDictionary:p], @"properties",
+             bestId, @"distinct_id",
+             timeStamp, @"time",
+             type, @"type",
+             libProperties, @"lib",
+             @(arc4random()), @"_track_id",
+             nil];
+    }
+    
+    if (project) {
+        [e setObject:project forKey:@"project"];
+    }
+    if (token) {
+        [e setObject:token forKey:@"token"];
+    }
+    
+    SALog(@"\n【track event】:\n%@", e);
+    
+    [self enqueueWithType:type andEvent:[e copy]];
 }
 
 - (void)track:(NSString *)event withProperties:(NSDictionary *)propertieDict {
@@ -2158,6 +2195,7 @@ static SensorsAnalyticsSDK *sharedInstance = nil;
     }
     BOOL isReal;
     [p setValue:[[self class] getUniqueHardwareId:&isReal] forKey:@"$device_id"];
+    [p setValue:[self DTTID] forKey:@"$DTTID"];
     [p addEntriesFromDictionary:@{
                                   @"$sdk_type": @"iOS",
                                   @"$sdk_version": [self libVersion],
@@ -2216,6 +2254,7 @@ static SensorsAnalyticsSDK *sharedInstance = nil;
 
 - (void)unarchive {
     [self unarchiveDistinctId];
+    [self unarchiveDTTID];
     [self unarchiveLoginId];
     [self unarchiveSuperProperties];
     [self unarchiveFirstDay];
@@ -2246,6 +2285,20 @@ static SensorsAnalyticsSDK *sharedInstance = nil;
         }
     }
     [self archiveDistinctId];
+}
+
+- (void)unarchiveDTTID {
+    NSString *archiveDTTID = (NSString *)[self unarchiveFromFile:[self filePathForData:@"DTTID"]];
+    if (archiveDTTID == nil) {
+        BOOL isReal;
+        NSString *device_id = [[self class] getUniqueHardwareId:&isReal];
+        int random = [MD5Encryption getRandomNumber:100000 to:1000000];
+        UInt64 timeStamp = [[self class] getCurrentTime];
+        self.DTTID = [MD5Encryption md5EncryptWithString:[NSString stringWithFormat:@"%@%d%llu", device_id, random, timeStamp]];
+    } else {
+        self.DTTID = archiveDTTID;
+    }
+    [self archiveDTTID];
 }
 
 - (void)unarchiveLoginId {
@@ -2280,6 +2333,17 @@ static SensorsAnalyticsSDK *sharedInstance = nil;
     }
     [SAKeyChainItemWrapper saveUdid:self.distinctId];
     SADebug(@"%@ archived distinctId", self);
+}
+
+- (void)archiveDTTID{
+    NSString *filePath = [self filePathForData:@"DTTID"];
+    /* 为filePath文件设置保护等级 */
+    NSDictionary *protection = [NSDictionary dictionaryWithObject:NSFileProtectionComplete forKey:NSFileProtectionKey];
+    [[NSFileManager defaultManager] setAttributes:protection ofItemAtPath:filePath error:nil];
+    if (![NSKeyedArchiver archiveRootObject:[[self DTTID] copy] toFile:filePath]) {
+        SAError(@"%@ unable to archive distinctId", self);
+    }
+    SADebug(@"%@ archived DTTID", self);
 }
 
 - (void)archiveLoginId {
@@ -2710,8 +2774,10 @@ static SensorsAnalyticsSDK *sharedInstance = nil;
             _referrerScreenUrl = currentScreenUrl;
         }
     }
-    [properties setValue:@(DTSTACK_PAGE_ENTER) forKey:EVENT_ID];
-    [self track:PAGE_ENTER withProperties:properties];
+    if ([self isAutoTrackEnabled] && [self isDtstackAutoTrackEventContains:DTSTACK_PAGE_ENTER]) {
+        [properties setValue:@(DTSTACK_PAGE_ENTER) forKey:EVENT_ID];
+        [self track:PAGE_ENTER withProperties:properties];
+    }
 }
 
 #ifdef SENSORS_ANALYTICS_REACT_NATIVE
@@ -2821,6 +2887,62 @@ static void sa_imp_setJSResponderBlockNativeResponder(id obj, SEL cmd, id reactT
             [SASwizzler unswizzleSelector:@selector(collectionView:didSelectItemAtIndexPath:) onClass:klass named:[NSString stringWithFormat:@"%@_%@", screenName, @"UICollectionView_AutoTrack"]];
         }
 #endif
+        //发送页面离开事件
+        if ([self isAutoTrackEnabled] && [self isDtstackAutoTrackEventContains:DTSTACK_PAGE_LEAVE]) {
+            if (![self shouldTrackClass: klass]) {
+                return;
+            }
+            NSMutableDictionary *properties = [[NSMutableDictionary alloc] init];
+            [properties setValue:NSStringFromClass(klass) forKey:SCREEN_NAME_PROPERTY];
+            
+            @try {
+                //先获取 controller.navigationItem.title
+                NSString *controllerTitle = controller.navigationItem.title;
+                if (controllerTitle != nil) {
+                    [properties setValue:controllerTitle forKey:@"$title"];
+                }
+                
+                //再获取 controller.navigationItem.titleView, 并且优先级比较高
+                NSString *elementContent = [self getUIViewControllerTitle:controller];
+                if (elementContent != nil && [elementContent length] > 0) {
+                    elementContent = [elementContent substringWithRange:NSMakeRange(0,[elementContent length] - 1)];
+                    [properties setValue:elementContent forKey:@"$title"];
+                }
+            } @catch (NSException *exception) {
+                SAError(@"%@ failed to get UIViewController's title error: %@", self, exception);
+            }
+            
+            if ([controller conformsToProtocol:@protocol(SAAutoTracker)]) {
+                UIViewController<SAAutoTracker> *autoTrackerController = (UIViewController<SAAutoTracker> *)controller;
+                [properties addEntriesFromDictionary:[autoTrackerController getTrackProperties]];
+                _lastScreenTrackProperties = [autoTrackerController getTrackProperties];
+            }
+            
+#ifdef SENSORS_ANALYTICS_AUTOTRACT_APPVIEWSCREEN_URL
+            [properties setValue:screenName forKey:SCREEN_URL_PROPERTY];
+            @synchronized(_referrerScreenUrl) {
+                if (_referrerScreenUrl) {
+                    [properties setValue:_referrerScreenUrl forKey:SCREEN_REFERRER_URL_PROPERTY];
+                }
+                _referrerScreenUrl = screenName;
+            }
+#endif
+            
+            if ([controller conformsToProtocol:@protocol(SAScreenAutoTracker)]) {
+                UIViewController<SAScreenAutoTracker> *screenAutoTrackerController = (UIViewController<SAScreenAutoTracker> *)controller;
+                NSString *currentScreenUrl = [screenAutoTrackerController getScreenUrl];
+                
+                [properties setValue:currentScreenUrl forKey:SCREEN_URL_PROPERTY];
+                @synchronized(_referrerScreenUrl) {
+                    if (_referrerScreenUrl) {
+                        [properties setValue:_referrerScreenUrl forKey:SCREEN_REFERRER_URL_PROPERTY];
+                    }
+                    _referrerScreenUrl = currentScreenUrl;
+                }
+            }
+            [properties setValue:@(DTSTACK_PAGE_LEAVE) forKey:EVENT_ID];
+            [self track:PAGE_LEAVE withProperties:properties];
+        }
     };
 
     void (^gestureRecognizerAppClickBlock)(id, SEL, id) = ^(id target, SEL command, id arg) {
@@ -2914,10 +3036,7 @@ static void sa_imp_setJSResponderBlockNativeResponder(id obj, SEL cmd, id reactT
             return;
         }
 
-        //忽略 $AppClick 事件
-//        if ([self isAutoTrackEventTypeIgnored:SensorsAnalyticsEventTypeAppClick]) {
-//            return;
-//        }
+        //忽略 app长按事件
         if (![self isDtstackAutoTrackEventContains:DTSTACK_PAGE_CTL_LONG_CLICKED]) {
             return;
         }
@@ -2940,9 +3059,9 @@ static void sa_imp_setJSResponderBlockNativeResponder(id obj, SEL cmd, id reactT
         }
 #endif
 
-//        if (view.sensorsAnalyticsIgnoreView) {
-//            return;
-//        }
+        if (view.sensorsAnalyticsIgnoreView) {
+            return;
+        }
 
         UIViewController *viewController = [self currentViewController];
         NSMutableDictionary *properties = [[NSMutableDictionary alloc] init];
@@ -3081,6 +3200,9 @@ static void sa_imp_setJSResponderBlockNativeResponder(id obj, SEL cmd, id reactT
 }
 
 - (void)trackViewScreen:(NSString *)url withProperties:(NSDictionary *)properties {
+    if (![self isAutoTrackEnabled] || ![self isDtstackAutoTrackEventContains:DTSTACK_PAGE_ENTER]) {
+        return;
+    }
     NSMutableDictionary *trackProperties = [[NSMutableDictionary alloc] init];
     if (properties) {
         [trackProperties addEntriesFromDictionary:properties];
@@ -3296,6 +3418,7 @@ static void sa_imp_setJSResponderBlockNativeResponder(id obj, SEL cmd, id reactT
 //            [self _flush:YES];
         });
     }
+    SADebug(@"APP will terminal ~~~~~~~~~~");
     if ([self isAutoTrackEnabled]) {
         if ([self isDtstackAutoTrackEventContains:DTSTACK_SYS_END]) {
             [self track:SYS_END withProperties:@{
@@ -3303,8 +3426,6 @@ static void sa_imp_setJSResponderBlockNativeResponder(id obj, SEL cmd, id reactT
                                                  }];
         }
     }
-    
-    
 }
 
 #pragma mark - SensorsData  Analytics

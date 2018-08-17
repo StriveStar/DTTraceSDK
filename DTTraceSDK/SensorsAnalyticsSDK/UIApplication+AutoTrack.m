@@ -144,8 +144,8 @@
             NSMutableDictionary *properties = [[NSMutableDictionary alloc] init];
             
             //设置点击的横纵坐标值
-            [properties setValue:@(point.x) forKey:@"$click_x"];
-            [properties setValue:@(point.y) forKey:@"click_y"];
+            [properties setValue:@(point.x) forKey:@"$screenX"];
+            [properties setValue:@(point.y) forKey:@"$screenY"];
             
             //ViewID
             if (view.sensorsAnalyticsViewID != nil) {
@@ -356,7 +356,7 @@
                     [properties addEntriesFromDictionary:propDict];
                 }
                 [properties setValue:@(DTSTACK_PAGE_CTL_CLICKED) forKey:@"event_id"];
-                [[SensorsAnalyticsSDK sharedInstance] track:@"PAGE_CTL_CLICKED" withProperties:properties];
+                [[SensorsAnalyticsSDK sharedInstance] track:@"$PAGE_CTL_CLICKED" withProperties:properties];
             }
         }
     } @catch (NSException *exception) {

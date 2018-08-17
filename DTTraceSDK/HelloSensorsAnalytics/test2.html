@@ -41,14 +41,19 @@
 sdk_url:'http://static.sensorsdata.cn/sdk/test/sensorsdata.full.js',
 heatmap_url:'http://static.sensorsdata.cn/sdk/test/heatmap.min.js',
 use_app_track:true,
-  name: 'sa',
-  server_url: 'http://www.baidu.com:8006/sa.gif?project=a&token=sad223d221221'
+name: 'sa',
+server_url: 'http://127.0.0.1:9080/debug'
 });
         
-        sa.quick('autoTrack');
-        
-        
-    </script>
+
+sa.track('ViewProduct', {
+         ProductId: '123456',
+         ProductCatalog: "Laptop Computer",
+         ProductName: "MacBook Pro",
+         ProductPrice: 123.45
+         });
+sa.quick('autoTrack');
+</script>
 
 
 

@@ -188,6 +188,11 @@
 		A3EEDCE91C4E084200D1362F /* DemoController.m in Sources */ = {isa = PBXBuildFile; fileRef = A3EEDCE81C4E084200D1362F /* DemoController.m */; };
 		A3F32BD01C57296700C3B98D /* SAValueTransformers.m in Sources */ = {isa = PBXBuildFile; fileRef = A3F32BCF1C57296700C3B98D /* SAValueTransformers.m */; };
 		C3BC04F72121A8940064841D /* local.plist in Resources */ = {isa = PBXBuildFile; fileRef = C3BC04F62121A8940064841D /* local.plist */; };
+		C3BC054821241C630064841D /* MD5Encryption.h in Headers */ = {isa = PBXBuildFile; fileRef = C3BC054621241C630064841D /* MD5Encryption.h */; };
+		C3BC054921241C630064841D /* MD5Encryption.m in Sources */ = {isa = PBXBuildFile; fileRef = C3BC054721241C630064841D /* MD5Encryption.m */; };
+		C3BC054A21241F520064841D /* MD5Encryption.h in Sources */ = {isa = PBXBuildFile; fileRef = C3BC054621241C630064841D /* MD5Encryption.h */; };
+		C3BC054B21241F9D0064841D /* MD5Encryption.m in Headers */ = {isa = PBXBuildFile; fileRef = C3BC054721241C630064841D /* MD5Encryption.m */; };
+		C3BC054C2124202D0064841D /* MD5Encryption.m in Sources */ = {isa = PBXBuildFile; fileRef = C3BC054721241C630064841D /* MD5Encryption.m */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -387,6 +392,8 @@
 		A3EEDCE81C4E084200D1362F /* DemoController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = DemoController.m; sourceTree = "<group>"; };
 		A3F32BCF1C57296700C3B98D /* SAValueTransformers.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = SAValueTransformers.m; sourceTree = "<group>"; };
 		C3BC04F62121A8940064841D /* local.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = local.plist; sourceTree = "<group>"; };
+		C3BC054621241C630064841D /* MD5Encryption.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MD5Encryption.h; sourceTree = "<group>"; };
+		C3BC054721241C630064841D /* MD5Encryption.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = MD5Encryption.m; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -599,6 +606,8 @@
 				A190A8C420CE58F6002C4202 /* UIView+AutoTrack.m */,
 				007BE5A620E1F1D2006CB1ED /* NSThread+SAHelpers.h */,
 				007BE5A720E1F1D2006CB1ED /* NSThread+SAHelpers.m */,
+				C3BC054621241C630064841D /* MD5Encryption.h */,
+				C3BC054721241C630064841D /* MD5Encryption.m */,
 			);
 			path = SensorsAnalyticsSDK;
 			sourceTree = "<group>";
@@ -665,6 +674,7 @@
 			files = (
 				008D82AE1F0E22ED00052CFF /* NSString+HashCode.h in Headers */,
 				A11C5459201075020074E817 /* SAAppExtensionDataManager.h in Headers */,
+				C3BC054B21241F9D0064841D /* MD5Encryption.m in Headers */,
 				A3746E9C1C313E15008A50A3 /* SAApplicationStateSerializer.h in Headers */,
 				0027C8491FA201CE002EA41B /* SAHeatMapSnapshotMessage.h in Headers */,
 				A3E388A11D509B8900F6B9FC /* SAReachability.h in Headers */,
@@ -705,6 +715,7 @@
 				002DB94F1EB1647F00A9632C /* UIApplication+AutoTrack.h in Headers */,
 				0038C5D11FCFA13E00C1BBC1 /* SensorsAnalyticsExceptionHandler.h in Headers */,
 				002BF6711F0A875100824F76 /* UIImage+AutoTrack.h in Headers */,
+				C3BC054821241C630064841D /* MD5Encryption.h in Headers */,
 				A3997A291C3AC342005A9374 /* SASwizzler.h in Headers */,
 				A3746E821C3115EB008A50A3 /* SADesignerMessage.h in Headers */,
 				00D3B57E1EFB382A0086F1F8 /* UITabBar+AutoTrack.h in Headers */,
@@ -891,6 +902,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				C3BC054C2124202D0064841D /* MD5Encryption.m in Sources */,
 				007BE5AA20E1F3D9006CB1ED /* NSThread+SAHelpers.m in Sources */,
 				A190A8C720CE5E83002C4202 /* UIView+AutoTrack.m in Sources */,
 				A161A05620B540F400A3CA14 /* SALocationManager.m in Sources */,
@@ -952,10 +964,12 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				C3BC054A21241F520064841D /* MD5Encryption.h in Sources */,
 				005EB7E71F9723F700C14AF1 /* AutoTrackUtils.m in Sources */,
 				A3E388A21D509BA100F6B9FC /* SAReachability.m in Sources */,
 				4DBA6FA41B4B9B9C004F0ADB /* MessageQueueBySqlite.m in Sources */,
 				A3997A2A1C3AC342005A9374 /* SASwizzler.m in Sources */,
+				C3BC054921241C630064841D /* MD5Encryption.m in Sources */,
 				A14938C8207B8730006EF04A /* SAKeyChainItemWrapper.m in Sources */,
 				A190A8C620CE58F6002C4202 /* UIView+AutoTrack.m in Sources */,
 				00EA97C21EEF7418005E524F /* UITableView+AutoTrack.m in Sources */,

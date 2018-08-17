@@ -216,6 +216,12 @@ typedef NS_ENUM(NSInteger, DTStackEventType) {
 @property (atomic, readonly, copy) NSString *distinctId;
 
 /**
+ * 在继承DTTrace的APP中默认情况下分配一个DTTID, 生成的规则为MD5(device_id+timestamp+random(100000-999999)))
+ * 当用户重新安装APP或者更换设备时会重新分配一个DTTID
+ */
+@property (atomic, readonly, copy) NSString *DTTID;
+
+/**
  * @property
  *
  * @abstract
@@ -420,11 +426,11 @@ typedef NS_ENUM(NSInteger, DTStackEventType) {
  * @property
  *
  * @abstract
- * 打开 SDK 自动追踪,默认只追踪App 启动 / 关闭、进入页面、元素点击
+ * 打开 SDK 自动追踪,默认只追踪App 启动 / 关闭、进入页面、元素点击等
  *
  * @discussion
- * 该功能自动追踪 App 的一些行为，例如 SDK 初始化、App 启动 / 关闭、进入页面 等等，具体信息请参考文档:
- *   https://sensorsdata.cn/manual/ios_sdk.html
+ * 该功能自动追踪 App 的预置事件，默认是关闭，具体预置事件请参考文档或者查看DTStackEventType枚举类:
+ 
  * 该功能默认关闭
  */
 - (void)enableAutoTrack;
@@ -491,7 +497,7 @@ typedef NS_ENUM(NSInteger, DTStackEventType) {
  *
  * @param eventType SensorsAnalyticsAutoTrackEventType 要忽略的 AutoTrack 事件类型
  */
-- (void)ignoreAutoTrackEventType:(SensorsAnalyticsAutoTrackEventType)eventType __attribute__((deprecated("已过时，请参考enableAutoTrack:(SensorsAnalyticsAutoTrackEventType)eventType")));
+- (void)ignoreAutoTrackEventType:(NSArray *)eventTypes;
 
 /**
  * @abstract

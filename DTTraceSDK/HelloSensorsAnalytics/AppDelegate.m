@@ -23,7 +23,7 @@
 @implementation AppDelegate
 
 - (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
-    [SensorsAnalyticsSDK sharedInstanceWithServerURL:SA_LUA_URL
+    [SensorsAnalyticsSDK sharedInstanceWithServerURL:SA_SERVER_URL
                                         andDebugMode:SA_DEBUG_MODE];
     [[SensorsAnalyticsSDK sharedInstance] enableLog:YES];
     [[SensorsAnalyticsSDK sharedInstance] enableAutoTrack];
@@ -39,6 +39,13 @@
     [[SensorsAnalyticsSDK sharedInstance] enableTrackGPSLocation:YES];
     [[SensorsAnalyticsSDK sharedInstance] setFlushBeforeEnterBackground:YES];
     [[SensorsAnalyticsSDK sharedInstance] setFlushBulkSize:10];
+//    [[[SensorsAnalyticsSDK sharedInstance] people] set:@"Sex" to:@"Male"];
+//    [[[SensorsAnalyticsSDK sharedInstance] people] setOnce:@"AdSource" to:@"APP Store"];
+//    [[[SensorsAnalyticsSDK sharedInstance] people] increment:@"GamePlayed" by:[NSNumber numberWithInt:1]];
+//    [[[SensorsAnalyticsSDK sharedInstance] people] increment:@{
+//                                                               @"UserPaid": [NSNumber numberWithInt:1],
+//                                                               @"PointEarned": [NSNumber numberWithFloat:12.5]
+//                                                               }];
     return YES;
 }
 
@@ -57,6 +64,7 @@
 - (void)applicationDidEnterBackground:(UIApplication *)application {
     // Use this method to release shared resources, save user data, invalidate timers, and store enough application state information to restore your application to its current state in case it is terminated later.
     // If your application supports background execution, this method is called instead of applicationWillTerminate: when the user quits.
+    [[UIApplication sharedApplication] beginBackgroundTaskWithExpirationHandler:^(){}];
 }
 
 - (void)applicationWillEnterForeground:(UIApplication *)application {

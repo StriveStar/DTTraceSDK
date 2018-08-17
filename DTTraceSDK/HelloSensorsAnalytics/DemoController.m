@@ -20,6 +20,22 @@
     self.tableView.sensorsAnalyticsDelegate = self;
 }
 
+- (void)viewWillDisappear:(BOOL)animated{
+    NSLog(@"该demo视图将要消失----disappear");
+    [super viewWillDisappear:animated];
+}
+- (void)viewDidDisappear:(BOOL)animated{
+    NSLog(@"该demo视图已经消失---didDisappear");
+    [super viewDidDisappear:animated];
+}
+
+- (void)dealloc
+{
+    NSLog(@"该demo视图被销毁----dealloc");
+}
+
+
+
 - (NSDictionary *)getTrackProperties {
     return @{@"shuxing" : @"Gaga"};
 }

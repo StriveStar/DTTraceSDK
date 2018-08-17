@@ -36,11 +36,16 @@
     if ([[SensorsAnalyticsSDK sharedInstance] showUpWebView:webView WithRequest:request enableVerify:YES]) {
         return NO;
     }
+    //
     return YES;
 }
 
 - (void)webViewDidFinishLoad:(UIWebView *)webView {
-    //[[SensorsAnalyticsSDK sharedInstance] showUpWebView:webView];
+//    [[SensorsAnalyticsSDK sharedInstance] showUpWebView:webView];
+    [webView stringByEvaluatingJavaScriptFromString:@"var script = document.createElement('script');"
+     "script.type = 'text/javascript';"
+     "script.src = \'http://static.sensorsdata.cn/sdk/test/test.js?1\';"
+     "document.getElementsByTagName('head')[0].appendChild(script);"];
 }
 
 @end
